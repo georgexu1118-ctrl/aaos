@@ -172,7 +172,23 @@ function hasStrongMathSignals(str: string): boolean {
   return /[\^_*+=\-/]/.test(str) || /\\(?:[a-zA-Z]+)/.test(str);
 }
 
+function normalizeLooseDisplayDelimiters(text: string): string {
+  return text.replace(
+    /(^|\n)([ \t]*)\$\$[ \t]*\n([\s\S]*?)[ \t]*\$\$/g,
+    (match, lead, indent, body) => {
+      const cleaned = body.replace(/\n[ \t]*\n+/g, "\n").trim();
+      if (!hasStrongMathSignals(cleaned)) return match;
+      return `${lead}${indent}$$\n${cleaned}\n${indent}$$`;
+    }
+  );
+}
+
 export function normalizeMath(text: string): string {
+  // Kimi K2 sometimes emits display math with a blank line after the opener:
+  // "$$\n\nI_D = ... V_{DS}$$". remark-math treats that as plain text, so
+  // compact it before dollar escaping sees the orphaned delimiter.
+  text = normalizeLooseDisplayDelimiters(text);
+
   // Pre-step 0: Fix unmatched closing $$ following an inline or itemized formula, like:
   // "- For $ p = 3 $:\n p^2 + 2 = 3^2 + 2 = 11 \quad \text{(prime)}\n $$"
   text = text.replace(
