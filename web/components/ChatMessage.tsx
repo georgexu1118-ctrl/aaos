@@ -79,6 +79,21 @@ function normalizeDisplayEnvironments(text: string): string {
   );
 }
 
+// Fix lone \ used as a row separator inside \begin{cases}...\end{cases}.
+// Kimi K2 and GPT-OSS sometimes emit "\ " (single backslash + space/newline)
+// instead of the correct LaTeX row separator "\\" (two backslashes).
+// Repaired before normalizeDisplayEnvironments wraps the block in $$.
+function normalizeCasesLineBreaks(text: string): string {
+  return text.replace(
+    /\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g,
+    (_match, body) => {
+      // \(?!\) matches a lone \ not already doubled; (\s) captures whitespace after.
+      const fixed = body.replace(/\\(?!\\)(\s)/g, "\\\\$1");
+      return `\\begin{cases}${fixed}\\end{cases}`;
+    }
+  );
+}
+
 function isLikelyMath(content: string): boolean {
   const trimmed = content.trim();
   if (trimmed.length === 0) return false;
@@ -203,6 +218,10 @@ export function normalizeMath(text: string): string {
     }
     return match;
   });
+
+  // ── Step 1a: Fix lone \\ row separators inside \\begin{cases} ─────────────────
+  // Must run before normalizeDisplayEnvironments so the body is clean when wrapped.
+  text = normalizeCasesLineBreaks(text);
 
   // ── Step 1b: Fix display environments with bad/missing delimiters ───────────
   // Covers: bare \begin{aligned}, single-$ wrapped, or already $$-wrapped (idempotent).
