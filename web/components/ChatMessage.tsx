@@ -99,6 +99,8 @@ function isLikelyMath(content: string): boolean {
   if (trimmed.length === 0) return false;
   // Single letter or letter-number variable like n, x, y, i, j, x1, t0
   if (/^[a-zA-Z](\d+)?$/.test(trimmed)) return true;
+  // Simple function notation like H(f), Q(x), or h_1(t)
+  if (/^[a-zA-Z](?:_\{?[a-zA-Z0-9]+\}?|\d+)?\([a-zA-Z0-9_{}+\-/]+\)$/.test(trimmed)) return true;
   // Standard LaTeX commands like \frac, \alpha, etc.
   if (/\\(?:[a-zA-Z]+)/.test(trimmed)) return true;
   // Common math symbols or operations
@@ -183,11 +185,39 @@ function normalizeLooseDisplayDelimiters(text: string): string {
   );
 }
 
+function normalizeMismatchedDisplayDelimiters(text: string): string {
+  return text.replace(
+    /(^|[^\$])\$\$[ \t]*([^$\n]*?(?:\\[a-zA-Z]+|[\^_={}\[\]+\-/*])[^$\n]*?)[ \t]*\$(?!\$)/g,
+    (match, lead, body) => {
+      const cleaned = body.trim();
+      if (!hasStrongMathSignals(cleaned)) return match;
+      return `${lead}\n$$\n${cleaned}\n$$\n`;
+    }
+  );
+}
+
+function normalizeEscapedMathDelimiters(text: string): string {
+  const codeParts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+  return codeParts.map((part, index) => {
+    if (index % 2 === 1) return part;
+    return part.replace(/\\\$([^$\n]+?)\\\$/g, (match, body) => {
+      const cleaned = body.trim();
+      if (!isLikelyMath(cleaned)) return match;
+      return `$${cleaned}$`;
+    });
+  }).join("");
+}
+
 export function normalizeMath(text: string): string {
+  text = text.replace(/(^|\n)\$[ \t]+(?=where\b)/gim, "$1");
+
   // Kimi K2 sometimes emits display math with a blank line after the opener:
   // "$$\n\nI_D = ... V_{DS}$$". remark-math treats that as plain text, so
   // compact it before dollar escaping sees the orphaned delimiter.
   text = normalizeLooseDisplayDelimiters(text);
+  // Kimi also emits "$$ equation $" and escaped inline math like "\$H(f)\$".
+  text = normalizeMismatchedDisplayDelimiters(text);
+  text = normalizeEscapedMathDelimiters(text);
 
   // Pre-step 0: Fix unmatched closing $$ following an inline or itemized formula, like:
   // "- For $ p = 3 $:\n p^2 + 2 = 3^2 + 2 = 11 \quad \text{(prime)}\n $$"
