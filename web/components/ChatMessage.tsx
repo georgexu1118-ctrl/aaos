@@ -33,7 +33,12 @@ function isStandaloneEquation(line: string): boolean {
   if (trimmed.startsWith("$$") || trimmed.endsWith("$$")) return false;
 
   const expression = trimmed.replace(/^(?:[-*]\s+|\d+[.)]\s+)/, "");
-  if (!expression.includes("=") || !/(?:\\(?:frac|sqrt|binom|sum|int|prod|lim|left|choose|over)|\^|_)/.test(expression)) return false;
+  const hasMathCmds = /\\(?:frac|sqrt|binom|sum|int|prod|lim|left|choose|over|nabla|partial|alpha|beta|gamma|delta|theta|lambda|mu|sigma|phi|infty|cdot|times)/.test(expression);
+  const hasMathOps  = /[\^_]/.test(expression);
+  if (!hasMathCmds && !hasMathOps) return false;
+  // = required unless the expression starts with a LaTeX command (pure math expression)
+  const startsLatex = /^\\[a-zA-Z]/.test(expression.trimStart());
+  if (!expression.includes("=") && !startsLatex) return false;
 
   const withoutCommands = expression
     .replace(/\$/g, "")
@@ -93,6 +98,48 @@ function normalizeCasesLineBreaks(text: string): string {
     }
   );
 }
+
+
+// ── normalizeBareLatexLines ──────────────────────────────────────────────────
+// Kimi K2 sometimes outputs \frac{...}{...} or \sum_{...} on a bare line
+// with NO surrounding $ or $$ delimiters, so remark-math never sees them.
+// Detects lines that start with a display LaTeX command and wraps in $$ ... $$.
+function normalizeBareLatexLines(text: string): string {
+  // Commands unambiguously display math (never appear bare in prose)
+  const DISPLAY_CMD = /\\(?:frac|dfrac|tfrac|cfrac|sum|int(?:_|\{)|oint|iint|prod|lim(?:_|\{)|nabla|partial|sqrt(?:\[|\{)|binom)/;
+  const codeParts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+  return codeParts.map((part, pIdx) => {
+    if (pIdx % 2 === 1) return part;
+    return part.split("\n").map(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.includes("$")) return line;
+      if (!DISPLAY_CMD.test(trimmed)) return line;
+      // Skip if long English prose words remain after stripping LaTeX tokens
+      const prose = trimmed
+        .replace(/\\[a-zA-Z]+(?:\{[^{}]{0,80}\}|\[[^\]]{0,40}\])?/g, " ")
+        .replace(/[^A-Za-z\s]/g, " ").trim();
+      if (prose.split(/\s+/).filter(w => w.length >= 4).length > 1) return line;
+      const indent = line.match(/^(\s*)/)?.[1] ?? "";
+      return `${indent}$$\n${trimmed}\n$$`;
+    }).join("\n");
+  }).join("");
+}
+
+// ── upgradeStandaloneInlineMath ──────────────────────────────────────────────
+// Standalone lines whose entire content is $\frac{...}$, $\sum...$, etc.
+// render poorly inline (compressed fractions, tiny summation signs).
+// Upgrade to $$ ... $$ so KaTeX uses full display sizing.
+function upgradeStandaloneInlineMath(text: string): string {
+  const DISPLAY_INNER = /\\(?:frac|dfrac|tfrac|sum|int|oint|prod|lim|nabla|partial)/;
+  return text.replace(
+    /^([ \t]*)\$(?!\$)([^$\n]{4,})\$(?!\$)[ \t]*$/gm,
+    (match, indent, inner) => {
+      if (!DISPLAY_INNER.test(inner)) return match;
+      return `${indent}$$\n${inner.trim()}\n$$`;
+    }
+  );
+}
+
 
 function isLikelyMath(content: string): boolean {
   const trimmed = content.trim();
@@ -285,6 +332,9 @@ export function normalizeMath(text: string): string {
     }
   );
 
+  // ── Step 0b: Wrap bare LaTeX display lines with no $ delimiters ──────────
+  text = normalizeBareLatexLines(text);
+
   // First, escape any lone or plain-text dollar signs to avoid confusing the markdown parser
   text = escapeNonMathDollars(text);
 
@@ -362,6 +412,10 @@ export function normalizeMath(text: string): string {
     /^([ \t]*(?:[-*]|\d+[.)]) ?)\$\$[ \t]*([^$\n]+?)[ \t]*(?:\$\$)?[ \t]*$/gm,
     (_m, listPrefix, formula) => `${listPrefix}$${formula.trim()}$`
   );
+
+  // ── Step 1h: Upgrade standalone-line inline math to display when it contains
+  // a fraction, sum, or integral — these look poor when KaTeX compresses them inline.
+  text = upgradeStandaloneInlineMath(text);
 
   // ── Step 2: Fix $$ glued to surrounding prose on the same line ─────────────
   // e.g. "…formula $$ 2. Next section" → "…formula\n$$\n2. Next section"

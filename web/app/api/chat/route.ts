@@ -424,6 +424,8 @@ const MATH_LATEX_RULE =
   "For multi-line derivations use one $$\\begin{aligned}...\\end{aligned}$$ block, never raw \\begin{align*}. " +
   "For piecewise/conditional definitions use $$\\begin{cases} expr_1 & \\text{if condition} \\\\ expr_2 & \\text{otherwise} \\end{cases}$$. " +
   "Inside \\begin{cases} and \\begin{aligned} the row separator is \\\\ (two backslashes) — never a single \\. " +
+  "Never output a LaTeX command (\\frac, \\sum, \\int, \\nabla, \\sqrt, etc.) without surrounding $ or $$ delimiters. " +
+  "Never use Unicode math characters (α β γ θ ∑ ∫); always use LaTeX commands (\\alpha \\beta \\gamma \\theta \\sum \\int). " +
   "Never mix delimited and undelimited expressions on one equation line, and never output bare ^ or _.";
 
 const SYSTEM_PROMPT =
