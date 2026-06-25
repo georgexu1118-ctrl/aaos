@@ -174,11 +174,40 @@ function hasStrongMathSignals(str: string): boolean {
   return /[\^_*+=\-/]/.test(str) || /\\(?:[a-zA-Z]+)/.test(str);
 }
 
+function normalizeDisplayMathBody(body: string): string {
+  let cleaned = body
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n[ \t]*\n+/g, "\n")
+    .trim();
+
+  // Kimi and other models sometimes render exponents as broken visual text:
+  // x
+  // 2
+  // x
+  // 2
+  // Rebuild the intended x^2 token before KaTeX sees it.
+  cleaned = cleaned.replace(
+    /(^|\s)([A-Za-z])\s*\n\s*(\d+)\s*\n\s*\2\s*\n?\s*\3(?=\s|\\|$)/g,
+    "$1$2^$3"
+  );
+
+  cleaned = cleaned.replace(
+    /(^|\s)([A-Za-z])\s*\n\s*(\d+)(?=\s*(?:\\(?:geq|leq|neq|approx|equiv)|[=<>+\-*/)]|$))/g,
+    "$1$2^$3"
+  );
+
+  if (!/\\begin\{|(?:^|[^\\])\\\\|&/.test(cleaned)) {
+    cleaned = cleaned.replace(/[ \t]*\n[ \t]*/g, " ").replace(/\s{2,}/g, " ");
+  }
+
+  return cleaned.trim();
+}
+
 function normalizeLooseDisplayDelimiters(text: string): string {
   return text.replace(
     /(^|\n)([ \t]*)\$\$[ \t]*\n([\s\S]*?)[ \t]*\$\$/g,
     (match, lead, indent, body) => {
-      const cleaned = body.replace(/\n[ \t]*\n+/g, "\n").trim();
+      const cleaned = normalizeDisplayMathBody(body);
       if (!hasStrongMathSignals(cleaned)) return match;
       return `${lead}${indent}$$\n${cleaned}\n${indent}$$`;
     }
@@ -187,9 +216,10 @@ function normalizeLooseDisplayDelimiters(text: string): string {
 
 function normalizeMismatchedDisplayDelimiters(text: string): string {
   return text.replace(
-    /(^|[^\$])\$\$[ \t]*([^$\n]*?(?:\\[a-zA-Z]+|[\^_={}\[\]+\-/*])[^$\n]*?)[ \t]*\$(?!\$)/g,
+    /(^|[^\$])\$\$[ \t]*([\s\S]*?)[ \t]*\$(?!\$)/g,
     (match, lead, body) => {
-      const cleaned = body.trim();
+      if (body.trimEnd().endsWith("$")) return match;
+      const cleaned = normalizeDisplayMathBody(body);
       if (!hasStrongMathSignals(cleaned)) return match;
       return `${lead}\n$$\n${cleaned}\n$$\n`;
     }
