@@ -180,6 +180,12 @@ function normalizeDisplayMathBody(body: string): string {
     .replace(/\n[ \t]*\n+/g, "\n")
     .trim();
 
+  // Some model outputs nest inline delimiters inside display math:
+  // $$\frac{d}{dx} $e^x$ = $e^x$ $
+  // Display math cannot contain nested $ delimiters, so strip only unescaped
+  // dollar signs once we are already inside a recovered display body.
+  cleaned = cleaned.replace(/(?<!\\)\$/g, "");
+
   // Kimi and other models sometimes render exponents as broken visual text:
   // x
   // 2
@@ -216,9 +222,8 @@ function normalizeLooseDisplayDelimiters(text: string): string {
 
 function normalizeMismatchedDisplayDelimiters(text: string): string {
   return text.replace(
-    /(^|[^\$])\$\$[ \t]*([\s\S]*?)[ \t]*\$(?!\$)/g,
+    /(^|[^\$])\$\$[ \t]*([\s\S]*?)[ \t]*\$(?=(?:\s+(?:This\b|where\b|[A-Z][A-Za-z]|\d+[.)]|\*\*)|\s*$))/g,
     (match, lead, body) => {
-      if (body.trimEnd().endsWith("$")) return match;
       const cleaned = normalizeDisplayMathBody(body);
       if (!hasStrongMathSignals(cleaned)) return match;
       return `${lead}\n$$\n${cleaned}\n$$\n`;
@@ -239,7 +244,7 @@ function normalizeEscapedMathDelimiters(text: string): string {
 }
 
 export function normalizeMath(text: string): string {
-  text = text.replace(/(^|\n)\$[ \t]+(?=where\b)/gim, "$1");
+  text = text.replace(/(^|\n)\$[ \t]+(?=[A-Za-z])/gm, "$1");
 
   // Kimi K2 sometimes emits display math with a blank line after the opener:
   // "$$\n\nI_D = ... V_{DS}$$". remark-math treats that as plain text, so
