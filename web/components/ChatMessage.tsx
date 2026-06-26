@@ -60,7 +60,7 @@ function normalizeOutsideMath(text: string): string {
 }
 
 // All LaTeX display-math environment names that need $$...$$ wrapping.
-const DISPLAY_ENV_RE = /align(?:ed|\*)?|equation\*?|gather(?:ed|\*)?|multline\*?|cases/;
+const DISPLAY_ENV_RE = /align(?:ed|\*)?|equation\*?|gather(?:ed|\*)?|multline\*?|cases|[BbPpVv]matrix|smallmatrix/;
 // Maps each environment to the KaTeX-safe inner env name.
 function targetEnv(env: string): string {
   if (/^align/.test(env)) return "aligned";
@@ -106,7 +106,7 @@ function normalizeCasesLineBreaks(text: string): string {
 // Detects lines that start with a display LaTeX command and wraps in $$ ... $$.
 function normalizeBareLatexLines(text: string): string {
   // Commands unambiguously display math (never appear bare in prose)
-  const DISPLAY_CMD = /\\(?:frac|dfrac|tfrac|cfrac|sum|int(?:_|\{)|oint|iint|prod|lim(?:_|\{)|nabla|partial|sqrt(?:\[|\{)|binom)/;
+  const DISPLAY_CMD = /\\(?:frac|dfrac|tfrac|cfrac|sum|int(?:_|\{)|oint|iint|prod|lim(?:_|\{)|nabla|partial|sqrt(?:\[|\{)|binom|begin\{[BbPpVv]matrix|begin\{smallmatrix)/;
   const codeParts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
   return codeParts.map((part, pIdx) => {
     if (pIdx % 2 === 1) return part;
@@ -353,6 +353,15 @@ export function normalizeMath(text: string): string {
   // ── Step 1a: Fix lone \\ row separators inside \\begin{cases} ─────────────────
   // Must run before normalizeDisplayEnvironments so the body is clean when wrapped.
   text = normalizeCasesLineBreaks(text);
+
+  // ── Step 1b-pre: Upgrade inline $ containing matrix environments to display $$ ─
+  // Matrix envs (\begin{bmatrix} etc.) inside $...$ render unreadably compressed.
+  // Upgrade the ENTIRE inline span so the full expression stays intact.
+  // Must run BEFORE normalizeDisplayEnvironments so bmatrix isn't extracted out of context.
+  text = text.replace(
+    /(?<!\$)\$(?!\$)((?:[^$]|\n(?!\n))*?\\begin\{(?:[BbPpVv]matrix|smallmatrix)\}[\s\S]*?\\end\{(?:[BbPpVv]matrix|smallmatrix)\}(?:[^$]|\n(?!\n))*?)\$(?!\$)/g,
+    (_m, inner) => `\n$$\n${inner.trim()}\n$$\n`
+  );
 
   // ── Step 1b: Fix display environments with bad/missing delimiters ───────────
   // Covers: bare \begin{aligned}, single-$ wrapped, or already $$-wrapped (idempotent).
