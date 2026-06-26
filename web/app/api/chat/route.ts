@@ -426,6 +426,8 @@ const MATH_LATEX_RULE =
   "Inside \\begin{cases} and \\begin{aligned} the row separator is \\\\ (two backslashes) — never a single \\. " +
   "Never output a LaTeX command (\\frac, \\sum, \\int, \\nabla, \\sqrt, etc.) without surrounding $ or $$ delimiters. " +
   "Never use Unicode math characters (α β γ θ ∑ ∫); always use LaTeX commands (\\alpha \\beta \\gamma \\theta \\sum \\int). " +
+  "Never use inline $...$ for equations containing matrices (\\begin{bmatrix}, \\begin{pmatrix}), fractions, or multiple sub-expressions — always use display $$...$$. " +
+  "For named-quantity equations like Cache Hit Rate, wrap the full expression: $$\\text{Cache Hit Rate} = \\frac{\\text{Hits}}{\\text{Accesses}}$$. " +
   "Never mix delimited and undelimited expressions on one equation line, and never output bare ^ or _.";
 
 const SYSTEM_PROMPT =
