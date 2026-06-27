@@ -6,13 +6,52 @@ import OpenAI from "openai";
 // ---------------------------------------------------------------------------
 // Tools
 // ---------------------------------------------------------------------------
-// Yahoo Finance v8 chart endpoint — works without auth/cookies (unlike v7 quote).
-// Returns meta block with current price, 52w high/low, day range, and a YTD time-series
-// from which we compute YTD %.
+// Finnhub REST API — primary stock data source (real-time quotes, free tier).
+// Falls back to Yahoo Finance v8 when FINNHUB_API_KEY is not configured so the
+// app works out of the box without any setup.
 async function getStock(symbol: string): Promise<Record<string, unknown>> {
   symbol = (symbol ?? "").trim().toUpperCase();
   if (!symbol) return { error: "no symbol given" };
+  const key = process.env.FINNHUB_API_KEY;
+  if (key) return getStockFinnhub(symbol, key);
+  return getStockYahoo(symbol);
+}
 
+async function getStockFinnhub(symbol: string, token: string): Promise<Record<string, unknown>> {
+  const nowSec  = Math.floor(Date.now() / 1000);
+  const jan1Sec = Math.floor(new Date(`${new Date().getFullYear()}-01-01T00:00:00Z`).getTime() / 1000);
+  try {
+    const [quoteRes, candleRes] = await Promise.all([
+      fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`, { cache: "no-store" }),
+      fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${jan1Sec}&to=${nowSec}&token=${token}`, { cache: "no-store" }),
+    ]);
+    const q      = await quoteRes.json()  as { c?: number; d?: number; dp?: number; h?: number; l?: number; o?: number; pc?: number };
+    const candle = await candleRes.json() as { c?: number[]; s?: string };
+    const price  = q.c;
+    if (!price) return { error: `no data for "${symbol}"` };
+    let ytdPct: number | undefined;
+    if (candle.s === "ok" && candle.c?.length && price) {
+      const first = candle.c[0];
+      if (first) ytdPct = +((price - first) / first * 100).toFixed(2);
+    }
+    return {
+      symbol,
+      last_price:     price,
+      previous_close: q.pc,
+      open:           q.o,
+      change:         q.d  != null ? +q.d.toFixed(2)  : undefined,
+      change_pct:     q.dp != null ? +q.dp.toFixed(2) : undefined,
+      day_high:       q.h,
+      day_low:        q.l,
+      ytd_pct:        ytdPct,
+      source: "finnhub",
+    };
+  } catch (e) {
+    return { error: String(e) };
+  }
+}
+
+async function getStockYahoo(symbol: string): Promise<Record<string, unknown>> {
   const fetchChart = async (range: string, interval: string) => {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`;
     const res = await fetch(url, {
@@ -43,11 +82,9 @@ async function getStock(symbol: string): Promise<Record<string, unknown>> {
         }>;
         error?: { code?: string; description?: string };
       };
-    }>;
+    }>();
   };
-
   try {
-    // 1-day chart for current price + day range
     const day = await fetchChart("1d", "5m");
     const dayResult = day?.chart?.result?.[0];
     if (!dayResult) {
@@ -57,48 +94,39 @@ async function getStock(symbol: string): Promise<Record<string, unknown>> {
     const meta = dayResult.meta ?? {};
     const last = meta.regularMarketPrice;
     const prev = meta.chartPreviousClose ?? meta.previousClose;
-
-    // YTD chart to compute year-to-date %
     let ytdPct: number | undefined;
     const ytd = await fetchChart("ytd", "1d");
     const ytdPoints = ytd?.chart?.result?.[0];
     if (ytdPoints?.indicators?.quote?.[0]?.close && ytdPoints.timestamp?.length) {
       const closes = (ytdPoints.indicators.quote[0].close ?? []).filter(c => typeof c === "number") as number[];
-      if (closes.length > 1 && last) {
-        ytdPct = +(((last - closes[0]) / closes[0]) * 100).toFixed(2);
-      }
+      if (closes.length > 1 && last) ytdPct = +(((last - closes[0]) / closes[0]) * 100).toFixed(2);
     }
-
-    const change = (last != null && prev != null) ? +(last - prev).toFixed(2) : undefined;
+    const change    = (last != null && prev != null) ? +(last - prev).toFixed(2) : undefined;
     const changePct = (last != null && prev) ? +(((last - prev) / prev) * 100).toFixed(2) : undefined;
-
-    // Open from first 5m bar of the session
-    const openArr = dayResult.indicators?.quote?.[0]?.open ?? [];
-    const open = openArr.find(v => typeof v === "number") ?? undefined;
-
+    const openArr   = dayResult.indicators?.quote?.[0]?.open ?? [];
+    const open      = openArr.find(v => typeof v === "number") ?? undefined;
     return {
-      symbol: meta.symbol ?? symbol,
-      name: meta.longName ?? meta.shortName,
-      exchange: meta.exchangeName,
-      currency: meta.currency,
-      last_price: last,
+      symbol:         meta.symbol ?? symbol,
+      name:           meta.longName ?? meta.shortName,
+      exchange:       meta.exchangeName,
+      currency:       meta.currency,
+      last_price:     last,
       previous_close: prev,
       open,
       change,
-      change_pct: changePct,
-      day_high: meta.regularMarketDayHigh,
-      day_low: meta.regularMarketDayLow,
-      year_high: meta.fiftyTwoWeekHigh,
-      year_low: meta.fiftyTwoWeekLow,
-      volume: meta.regularMarketVolume,
-      ytd_pct: ytdPct,
+      change_pct:  changePct,
+      day_high:    meta.regularMarketDayHigh,
+      day_low:     meta.regularMarketDayLow,
+      year_high:   meta.fiftyTwoWeekHigh,
+      year_low:    meta.fiftyTwoWeekLow,
+      volume:      meta.regularMarketVolume,
+      ytd_pct:     ytdPct,
       source: "yahoo finance v8 chart",
     };
   } catch (e) {
     return { error: String(e) };
   }
 }
-
 // Tiny RSS item extractor — works in Edge Runtime (no DOMParser needed).
 function extractTag(block: string, tag: string): string {
   const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
