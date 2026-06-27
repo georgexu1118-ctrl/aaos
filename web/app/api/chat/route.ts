@@ -13,12 +13,16 @@ async function getStock(symbol: string): Promise<Record<string, unknown>> {
   symbol = (symbol ?? "").trim().toUpperCase();
   if (!symbol) return { error: "no symbol given" };
 
+  // Try query1 first; fall back to query2 if query1 is rate-limited from Vercel IPs
   const fetchChart = async (range: string, interval: string) => {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      cache: "no-store",
-    });
+    const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`;
+    const hdrs = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      "Accept": "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+    let res = await fetch(`https://query1.finance.yahoo.com${path}`, { headers: hdrs, cache: "no-store" });
+    if (!res.ok) res = await fetch(`https://query2.finance.yahoo.com${path}`, { headers: hdrs, cache: "no-store" });
     if (!res.ok) return null;
     return res.json() as Promise<{
       chart?: {
@@ -43,12 +47,15 @@ async function getStock(symbol: string): Promise<Record<string, unknown>> {
         }>;
         error?: { code?: string; description?: string };
       };
-    }>;
+    }>();
   };
 
   try {
-    // 1-day chart for current price + day range
-    const day = await fetchChart("1d", "5m");
+    // Fetch 1-day chart and YTD series in parallel for speed
+    const [day, ytd] = await Promise.all([
+      fetchChart("1d", "5m"),
+      fetchChart("ytd", "1d"),
+    ]);
     const dayResult = day?.chart?.result?.[0];
     if (!dayResult) {
       const code = day?.chart?.error?.code ?? "unknown";
@@ -58,14 +65,14 @@ async function getStock(symbol: string): Promise<Record<string, unknown>> {
     const last = meta.regularMarketPrice;
     const prev = meta.chartPreviousClose ?? meta.previousClose;
 
-    // YTD chart to compute year-to-date %
+    // YTD %: chartPreviousClose in the ytd range meta = last close of Dec 31 prior year,
+    // which is the correct YTD base. Using closes[0] (first ytd candle = Jan 2 close) is wrong.
     let ytdPct: number | undefined;
-    const ytd = await fetchChart("ytd", "1d");
-    const ytdPoints = ytd?.chart?.result?.[0];
-    if (ytdPoints?.indicators?.quote?.[0]?.close && ytdPoints.timestamp?.length) {
-      const closes = (ytdPoints.indicators.quote[0].close ?? []).filter(c => typeof c === "number") as number[];
-      if (closes.length > 1 && last) {
-        ytdPct = +(((last - closes[0]) / closes[0]) * 100).toFixed(2);
+    const ytdResult = ytd?.chart?.result?.[0];
+    if (ytdResult?.meta && last != null) {
+      const ytdBase = ytdResult.meta.chartPreviousClose ?? ytdResult.meta.previousClose;
+      if (ytdBase && typeof ytdBase === "number") {
+        ytdPct = +(((last - ytdBase) / ytdBase) * 100).toFixed(2);
       }
     }
 
