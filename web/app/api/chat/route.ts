@@ -47,7 +47,7 @@ async function getStock(symbol: string): Promise<Record<string, unknown>> {
         }>;
         error?: { code?: string; description?: string };
       };
-    }>();
+    }>;
   };
 
   try {
