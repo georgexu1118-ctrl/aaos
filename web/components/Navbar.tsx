@@ -99,7 +99,7 @@ export default function Navbar() {
             <span className="hidden lg:inline">LinkedIn</span>
           </a>
 
-          <a href="https://github.com/georgexu1118-ctrl"
+          <a href="https://github.com/georgxzh"
             target="_blank" rel="noopener noreferrer"
             title="GitHub"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium
@@ -135,7 +135,7 @@ export default function Navbar() {
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-blue-300/80 hover:bg-blue-900/25 transition-colors">
             <LinkedInIcon size={14} /> LinkedIn
           </a>
-          <a href="https://github.com/georgexu1118-ctrl"
+          <a href="https://github.com/georgxzh"
             target="_blank" rel="noopener noreferrer"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-zinc-300/80 hover:bg-zinc-800/40 transition-colors">
