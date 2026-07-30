@@ -200,6 +200,9 @@ export default function HomePage() {
                   className="h-[240px] w-full object-cover object-top opacity-90 md:h-[280px]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e10] via-[#0c0e10]/20 to-transparent" />
+                <p className="absolute bottom-3 left-3 text-[10px] font-mono text-zinc-400/70">
+                  nfa / traded this multiple times, I don&apos;t hold
+                </p>
               </div>
             </article>
 
