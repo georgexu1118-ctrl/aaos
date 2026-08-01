@@ -290,7 +290,33 @@ function normalizeEscapedMathDelimiters(text: string): string {
   }).join("");
 }
 
+function collapseCharacterSpread(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (trimmed.length === 1 && /[A-Za-z.,!?;:']/.test(trimmed)) {
+      let j = i + 1;
+      while (j < lines.length) {
+        const t = lines[j].trim();
+        if (t.length === 1 && /[A-Za-z.,!?;:' ]/.test(t)) j++;
+        else break;
+      }
+      if (j - i >= 5) {
+        out.push(lines.slice(i, j).map(l => l.trim()).join(''));
+        i = j;
+        continue;
+      }
+    }
+    out.push(lines[i]);
+    i++;
+  }
+  return out.join('\n');
+}
+
 export function normalizeMath(text: string): string {
+  text = collapseCharacterSpread(text);
   text = text.replace(/(^|\n)\$[ \t]+(?=[A-Za-z])/gm, "$1");
 
   // Kimi K2 sometimes emits display math with a blank line after the opener:
