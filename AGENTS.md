@@ -113,7 +113,7 @@ default                → GENERAL_PROVIDERS
 | `GENERAL_PROVIDERS` | Groq Kimi K2 → Groq Llama 3.3 70B → OpenAI gpt-4o-mini → Together Llama-4 Scout → Together Llama 3.1 70B |
 | `EDU_PROVIDERS` | Groq gpt-oss-20b → Together gpt-oss-20b → Together Llama-4 Scout → Together Llama 3.1 8B |
 | `EDU_PDF_PROVIDERS` | Groq Kimi K2 → Groq Llama 3.3 70B → then EDU_PROVIDERS |
-| `CODING_PROVIDERS` | HF NousCoder-14B (HF_TOKEN) → HF NousCoder-14B (HUGGINGFACE_API_KEY) → Groq gpt-oss-20b → OpenAI fine-tune or gpt-4o-mini |
+| `CODING_PROVIDERS` | Dedicated NousCoder-14B endpoint (HF_TOKEN or HUGGINGFACE_API_KEY + NOUSCODER_BASE_URL) → OpenAI fine-tune or gpt-4o-mini |
 | `VISION_PROVIDERS` | Groq Llama-4-Scout → Together Llama-4-Scout |
 
 ---
@@ -155,6 +155,7 @@ GROQ_API_KEY=...
 TOGETHER_API_KEY=...
 OPENAI_API_KEY=...
 HF_TOKEN=...
+NOUSCODER_BASE_URL=... # OpenAI-compatible dedicated endpoint, including /v1
 ```
 
 ### Commands

@@ -455,6 +455,7 @@ const SYSTEM_PROMPT =
 type ProviderConfig = {
   apiKeyEnv: string;
   baseURL?: string;
+  baseURLEnv?: string;
   modelId: string;
   mode: "general" | "educational" | "coding" | "vision";
 };
@@ -486,13 +487,14 @@ const GENERAL_PROVIDERS: ProviderConfig[] = [
   { apiKeyEnv: "TOGETHER_API_KEY",  baseURL: "https://api.together.xyz/v1",          modelId: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",   mode: "general" },
 ];
 
-// Coding layer — NousCoder-14B via Hugging Face Router when HF_TOKEN is configured.
-// Production-proven Groq/OpenAI fallbacks keep coding mode available when HF is absent.
+// Coding layer — the public HF Router cannot serve NousCoder-14B because no
+// serverless Inference Provider currently deploys it. Point NOUSCODER_BASE_URL
+// at an OpenAI-compatible dedicated endpoint (for example, HF vLLM) to use the
+// real checkpoint. The OpenAI fallback keeps coding mode usable while it sleeps.
 const CODING_PROVIDERS: ProviderConfig[] = [
-  { apiKeyEnv: "HF_TOKEN",               baseURL: "https://router.huggingface.co/v1", modelId: "NousResearch/NousCoder-14B",             mode: "coding" },
-  { apiKeyEnv: "HUGGINGFACE_API_KEY",    baseURL: "https://router.huggingface.co/v1", modelId: "NousResearch/NousCoder-14B",             mode: "coding" },
-  { apiKeyEnv: "GROQ_API_KEY",           baseURL: "https://api.groq.com/openai/v1",   modelId: "openai/gpt-oss-20b",                     mode: "coding" },
-  { apiKeyEnv: "OPENAI_API_KEY",                                                         modelId: _ftModel ?? "gpt-4o-mini",               mode: "coding" },
+  { apiKeyEnv: "HF_TOKEN",            baseURLEnv: "NOUSCODER_BASE_URL", modelId: "NousResearch/NousCoder-14B", mode: "coding" },
+  { apiKeyEnv: "HUGGINGFACE_API_KEY", baseURLEnv: "NOUSCODER_BASE_URL", modelId: "NousResearch/NousCoder-14B", mode: "coding" },
+  { apiKeyEnv: "OPENAI_API_KEY",                                         modelId: _ftModel ?? "gpt-4o-mini",   mode: "coding" },
 ];
 
 // Vision layer: Groq LPU first (fastest), Together AI fallback.
@@ -517,7 +519,9 @@ function resolveProviderChain(requested: string, hasImage: boolean, hasPdf = fal
 }
 
 function firstAvailable(chain: ProviderConfig[]): ProviderConfig | null {
-  for (const p of chain) { if (process.env[p.apiKeyEnv]) return p; }
+  for (const p of chain) {
+    if (process.env[p.apiKeyEnv] && (!p.baseURLEnv || process.env[p.baseURLEnv])) return p;
+  }
   return null;
 }
 
@@ -534,8 +538,9 @@ async function streamWithFallbacks(
   const errs: string[] = [];
   for (const provider of chain) {
     const key = process.env[provider.apiKeyEnv];
-    if (!key) continue;
-    const client = new OpenAI({ apiKey: key, baseURL: provider.baseURL });
+    const baseURL = provider.baseURLEnv ? process.env[provider.baseURLEnv] : provider.baseURL;
+    if (!key || (provider.baseURLEnv && !baseURL)) continue;
+    const client = new OpenAI({ apiKey: key, baseURL });
     try {
       const chunks = await client.chat.completions.create({
         model: provider.modelId, stream: true, ...params,
@@ -569,8 +574,9 @@ async function completeWithFallbacks(
   const errs: string[] = [];
   for (const provider of chain) {
     const key = process.env[provider.apiKeyEnv];
-    if (!key) continue;
-    const client = new OpenAI({ apiKey: key, baseURL: provider.baseURL });
+    const baseURL = provider.baseURLEnv ? process.env[provider.baseURLEnv] : provider.baseURL;
+    if (!key || (provider.baseURLEnv && !baseURL)) continue;
+    const client = new OpenAI({ apiKey: key, baseURL });
     try {
       return await client.chat.completions.create({
         model: provider.modelId, stream: false, ...params,
@@ -855,13 +861,13 @@ export async function POST(req: NextRequest) {
           }
 
           send({ type: "flashcards", cards });
-          send({ type: "done", text: `${cards.length} flashcards generated.` });
+          send({ type: "done", text: `${cards.length} flashcards generated.`, model: completion.model });
           return;
         }
 
         if (instantEducationalAnswer) {
           send({ type: "text", text: instantEducationalAnswer });
-          send({ type: "done", text: instantEducationalAnswer });
+          send({ type: "done", text: instantEducationalAnswer, model: "aaos-fast-path" });
           return;
         }
 
@@ -1002,7 +1008,7 @@ export async function POST(req: NextRequest) {
           // Leaked tool calls arrive with finish_reason "stop" (the model thinks
           // it's done), so don't let that short-circuit before we run them.
           if (!tcList.length || !useTools || (finishReason === "stop" && !hadLeakedCalls)) {
-            send({ type: "done", text: content });
+            send({ type: "done", text: content, model: mainModel });
             break;
           }
 

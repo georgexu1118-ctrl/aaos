@@ -125,32 +125,49 @@ function ChatPage() {
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       const toolCalls: Message["toolCalls"] = [];
+      let buffer = "";
+
+      const processLine = (line: string) => {
+        if (!line.startsWith("data: ")) return;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === "text") {
+            setMessages(prev => prev.map(m =>
+              m.id === aiId ? { ...m, content: m.content + ev.text } : m
+            ));
+          } else if (ev.type === "tool_call") {
+            toolCalls.push({ tool: ev.tool, args: ev.args });
+            setMessages(prev => prev.map(m =>
+              m.id === aiId ? { ...m, toolCalls: [...toolCalls] } : m
+            ));
+          } else if (ev.type === "done") {
+            setMessages(prev => prev.map(m =>
+              m.id === aiId
+                ? { ...m, content: typeof ev.text === "string" ? ev.text : m.content, streaming: false }
+                : m
+            ));
+          } else if (ev.type === "error") {
+            setMessages(prev => prev.map(m =>
+              m.id === aiId ? { ...m, content: ev.message ?? "Something went wrong.", streaming: false } : m
+            ));
+          }
+        } catch { /* incomplete line remains buffered until the next read */ }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const raw = dec.decode(value, { stream: true });
-        for (const line of raw.split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const ev = JSON.parse(line.slice(6));
-            if (ev.type === "text") {
-              setMessages(prev => prev.map(m =>
-                m.id === aiId ? { ...m, content: m.content + ev.text } : m
-              ));
-            } else if (ev.type === "tool_call") {
-              toolCalls.push({ tool: ev.tool, args: ev.args });
-              setMessages(prev => prev.map(m =>
-                m.id === aiId ? { ...m, toolCalls: [...toolCalls] } : m
-              ));
-            } else if (ev.type === "done") {
-              setMessages(prev => prev.map(m =>
-                m.id === aiId ? { ...m, streaming: false } : m
-              ));
-            }
-          } catch { /* partial */ }
-        }
+        buffer += dec.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) processLine(line);
       }
+
+      buffer += dec.decode();
+      if (buffer) processLine(buffer);
+      setMessages(prev => prev.map(m =>
+        m.id === aiId && m.streaming ? { ...m, streaming: false } : m
+      ));
     } catch (err) {
       setMessages(prev => prev.map(m =>
         m.id === aiId
