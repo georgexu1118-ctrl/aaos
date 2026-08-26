@@ -315,8 +315,33 @@ function collapseCharacterSpread(text: string): string {
   return out.join('\n');
 }
 
+const SUPERSCRIPT_CHARS: Record<string, string> = {
+  "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+  "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+  "⁺": "+", "⁻": "-", "⁼": "=", "⁽": "(", "⁾": ")",
+  "ᵃ": "a", "ᵇ": "b", "ᶜ": "c", "ᵈ": "d", "ᵉ": "e",
+  "ᶠ": "f", "ᵍ": "g", "ʰ": "h", "ⁱ": "i", "ʲ": "j",
+  "ᵏ": "k", "ˡ": "l", "ᵐ": "m", "ⁿ": "n", "ᵒ": "o",
+  "ᵖ": "p", "ʳ": "r", "ˢ": "s", "ᵗ": "t", "ᵘ": "u",
+  "ᵛ": "v", "ʷ": "w", "ˣ": "x", "ʸ": "y", "ᶻ": "z",
+};
+
+function normalizeUnicodeMathTokens(text: string): string {
+  const superscriptRun = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]+/g;
+  const codeParts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+  return codeParts.map((part, index) => {
+    if (index % 2 === 1) return part;
+    return part
+      .replace(/\u00a0/g, " ")
+      .replace(/[−–]/g, "-")
+      .replace(/′/g, "'")
+      .replace(superscriptRun, run => `^{${[...run].map(char => SUPERSCRIPT_CHARS[char]).join("")}}`);
+  }).join("");
+}
+
 export function normalizeMath(text: string): string {
   text = collapseCharacterSpread(text);
+  text = normalizeUnicodeMathTokens(text);
   text = text.replace(/(^|\n)\$[ \t]+(?=[A-Za-z])/gm, "$1");
 
   // Kimi K2 sometimes emits display math with a blank line after the opener:

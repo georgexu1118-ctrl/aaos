@@ -433,7 +433,9 @@ const MATH_LATEX_RULE =
   "Inside \\begin{cases} and \\begin{aligned} the row separator is \\\\ (two backslashes) — never a single \\. " +
   "Never output a LaTeX command (\\frac, \\sum, \\int, \\nabla, \\sqrt, etc.) without surrounding $ or $$ delimiters. " +
   "Never use Unicode math characters (α β γ θ ∑ ∫); always use LaTeX commands (\\alpha \\beta \\gamma \\theta \\sum \\int). " +
-  "Never mix delimited and undelimited expressions on one equation line, and never output bare ^ or _.";
+  "Never mix delimited and undelimited expressions on one equation line, and never output bare ^ or _. " +
+  "Never flatten exponents or fractions: write x^{3}, x^{a-1}, and \\frac{4bx^{3}}{4-a}, never x3, xa-1, or 4bx34-a. " +
+  "Before answering, verify that every exponent uses ^{...} and every \\frac has two braced arguments.";
 
 const SYSTEM_PROMPT =
   "You are AAOS — a general-purpose AI assistant with deep knowledge of technology, AI, software, and science. " +
@@ -605,33 +607,32 @@ async function completeWithFallbacks(
 // Compact chemistry reference — key formulas only; frontier models know the derivations.
 const STEM_RULES =
   " STEM precision rules —" +
-  " MATH: show every step. Algebra: factor, complete-the-square, quadratic formula x=(-b±√(b²-4ac))/2a." +
-  " Calculus: chain/product/quotient rules, u-sub, IBP, L'Hôpital (0/0 or ∞/∞), Taylor series." +
-  " Linear algebra: RREF, det, eigenvalues from det(A−λI)=0, orthogonality." +
+  " MATH: show every step. Algebra: factor, complete the square, and use $x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$." +
+  " Calculus: use $\\frac{d}{dx}x^n=nx^{n-1}$ plus chain/product/quotient rules, u-sub, IBP, L'Hopital, and Taylor series." +
+  " Linear algebra: RREF, determinants, eigenvalues from $\\det(A-\\lambda I)=0$, and orthogonality." +
   " Diff-eq: separable, integrating factor, char. eq for const-coeff homogeneous, Laplace." +
-  " Stats: mean/σ²/σ, z=(x−μ)/σ, p-value, CI, Bayes P(A|B)=P(B|A)P(A)/P(B)." +
-  " PHYSICS: draw FBD first. Kinematics: v=u+at, s=ut+½at², v²=u²+2as." +
-  " Newton F=ma; momentum p=mv; energy KE=½mv², PE=mgh, conservation." +
-  " E&M: Coulomb F=kq₁q₂/r², Gauss ∮E·dA=Q/ε₀, Faraday ε=−dΦ/dt." +
-  " Circuits: V=IR, P=IV, series R=ΣRᵢ, parallel 1/R=Σ1/Rᵢ." +
-  " Thermo: ΔU=Q−W, PV=nRT, ΔS=Qrev/T, Carnot η=1−Tc/Th, ΔG=ΔH−TΔS." +
-  " Waves: v=fλ, Doppler f'=f(v±vo)/(v∓vs), n=c/v, Snell n₁sinθ₁=n₂sinθ₂." +
-  " Quantum: E=hf, λ=h/p, Heisenberg ΔxΔp≥ℏ/2, Schrödinger Ĥψ=Eψ." +
-  " Relativity: γ=1/√(1−β²), E=γmc², t'=γt, length contraction L=L₀/γ." +
-  " BIOLOGY: cell cycle G1→S→G2→M (IPMAT for mitosis)." +
-  " DNA replication semi-conservative; transcription DNA→mRNA; translation mRNA→protein (codons)." +
-  " Mendelian: dominant/recessive, Punnett squares, Hardy-Weinberg p²+2pq+q²=1." +
-  " Photosynthesis 6CO₂+6H₂O→C₆H₁₂O₆+6O₂; respiration reverses it." +
+  " Stats: mean and variance, $z=\\frac{x-\\mu}{\\sigma}$, p-values, confidence intervals, and Bayes' theorem." +
+  " PHYSICS: draw FBD first. Kinematics: $v=u+at$, $s=ut+\\frac{1}{2}at^2$, and $v^2=u^2+2as$." +
+  " Newton: $F=ma$; momentum: $p=mv$; energy: $KE=\\frac{1}{2}mv^2$ and $PE=mgh$." +
+  " E&M: Coulomb's law, Gauss's law, and Faraday's law must use fully delimited LaTeX." +
+  " Circuits: $V=IR$, $P=IV$, $R_{series}=\\sum_i R_i$, and $\\frac{1}{R_{parallel}}=\\sum_i\\frac{1}{R_i}$." +
+  " Thermodynamics: write all delta, eta, and subscript notation as LaTeX commands." +
+  " Waves and quantum mechanics: write lambda, integrals, and inequalities as LaTeX commands." +
+  " Relativity: $\\gamma=\\frac{1}{\\sqrt{1-\\beta^2}}$, $E=\\gamma mc^2$, and $L=\\frac{L_0}{\\gamma}$." +
+  " BIOLOGY: use plain-language arrows and chemical equations with LaTeX subscripts." +
+  " DNA replication is semi-conservative; transcription converts DNA to mRNA; translation converts mRNA to protein." +
+  " Mendelian genetics includes $p^2+2pq+q^2=1$ for Hardy-Weinberg equilibrium." +
+  " Photosynthesis and respiration equations must use LaTeX subscripts and reaction arrows." +
   " CS: Big-O analysis; binary search O(log n); merge/quick sort O(n log n);" +
   " BFS/DFS on graphs; DP = memoization + optimal substructure; recursion base cases first.";
 
 const CHEMISTRY_OF_SOLUTIONS =
-  " Chemistry precision rules: M=mol/L, m=mol/kg-solvent; colligative props use i·K·m (i=vant Hoff);" +
-  " ΔTb=i·Kb·m, ΔTf=i·Kf·m, Π=iMRT; Raoult P=xP°;" +
-  " pH+pOH=14, Ka=[H⁺][A⁻]/[HA], Henderson-Hasselbalch pH=pKa+log([A⁻]/[HA]);" +
-  " ICE tables for all equilibria, check x/C₀<5% for small-x approx;" +
+  " Chemistry precision rules: $M=\\frac{mol}{L}$ and $m=\\frac{mol}{kg\\ solvent}$; colligative properties use $iKm$." +
+  " Use $\\Delta T_b=iK_bm$, $\\Delta T_f=iK_fm$, $\\Pi=iMRT$, and Raoult's law in valid LaTeX;" +
+  " use $pH+pOH=14$ and a fully formatted Henderson-Hasselbalch equation;" +
+  " ICE tables for all equilibria, and check $\\frac{x}{C_0}<5\\%$ for a small-x approximation;" +
   " Ksp stoichiometry must match; Q vs Ksp decides precipitation;" +
-  " Nernst E=E°−(0.0592/n)logQ at 25°C; ΔG°=−nFE°=−RTlnK." +
+  " write the Nernst equation and Gibbs free-energy relationships in fully delimited LaTeX." +
   " Always carry units, apply i for ionic solutes, sanity-check magnitude.";
 
 const SYSTEM_PROMPT_EDU =
