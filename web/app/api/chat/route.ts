@@ -486,14 +486,13 @@ const GENERAL_PROVIDERS: ProviderConfig[] = [
   { apiKeyEnv: "TOGETHER_API_KEY",  baseURL: "https://api.together.xyz/v1",          modelId: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",   mode: "general" },
 ];
 
-// Coding layer — NousCoder-14B via Hugging Face Router when HF_TOKEN is configured,
-// with code-specialist fallbacks so the UI still works in deployments without HF.
+// Coding layer — NousCoder-14B via Hugging Face Router when HF_TOKEN is configured.
+// Production-proven Groq/OpenAI fallbacks keep coding mode available when HF is absent.
 const CODING_PROVIDERS: ProviderConfig[] = [
   { apiKeyEnv: "HF_TOKEN",               baseURL: "https://router.huggingface.co/v1", modelId: "NousResearch/NousCoder-14B",             mode: "coding" },
   { apiKeyEnv: "HUGGINGFACE_API_KEY",    baseURL: "https://router.huggingface.co/v1", modelId: "NousResearch/NousCoder-14B",             mode: "coding" },
-  { apiKeyEnv: "TOGETHER_API_KEY",       baseURL: "https://api.together.xyz/v1",      modelId: "Qwen/Qwen2.5-Coder-32B-Instruct",        mode: "coding" },
-  { apiKeyEnv: "TOGETHER_API_KEY",       baseURL: "https://api.together.xyz/v1",      modelId: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo", mode: "coding" },
-  { apiKeyEnv: "GROQ_API_KEY",           baseURL: "https://api.groq.com/openai/v1",   modelId: "llama-3.3-70b-versatile",                mode: "coding" },
+  { apiKeyEnv: "GROQ_API_KEY",           baseURL: "https://api.groq.com/openai/v1",   modelId: "openai/gpt-oss-20b",                     mode: "coding" },
+  { apiKeyEnv: "OPENAI_API_KEY",                                                         modelId: _ftModel ?? "gpt-4o-mini",               mode: "coding" },
 ];
 
 // Vision layer: Groq LPU first (fastest), Together AI fallback.

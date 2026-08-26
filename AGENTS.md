@@ -113,7 +113,7 @@ default                → GENERAL_PROVIDERS
 | `GENERAL_PROVIDERS` | Groq Kimi K2 → Groq Llama 3.3 70B → OpenAI gpt-4o-mini → Together Llama-4 Scout → Together Llama 3.1 70B |
 | `EDU_PROVIDERS` | Groq gpt-oss-20b → Together gpt-oss-20b → Together Llama-4 Scout → Together Llama 3.1 8B |
 | `EDU_PDF_PROVIDERS` | Groq Kimi K2 → Groq Llama 3.3 70B → then EDU_PROVIDERS |
-| `CODING_PROVIDERS` | HF NousCoder-14B (HF_TOKEN) → HF NousCoder-14B (HUGGINGFACE_API_KEY) → Together Qwen2.5-Coder-32B → Together Llama 70B → Groq Llama 70B |
+| `CODING_PROVIDERS` | HF NousCoder-14B (HF_TOKEN) → HF NousCoder-14B (HUGGINGFACE_API_KEY) → Groq gpt-oss-20b → OpenAI fine-tune or gpt-4o-mini |
 | `VISION_PROVIDERS` | Groq Llama-4-Scout → Together Llama-4-Scout |
 
 ---

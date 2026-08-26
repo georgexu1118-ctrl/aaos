@@ -69,7 +69,7 @@ On HTTP 400/404/422/429/500/503/529, the chain silently falls to the next provid
 |---|---|---|---|
 | Kimi K2 (Reasoning) | `gpt-4o-mini` | Groq → `moonshotai/kimi-k2-instruct-0905` | Groq Llama 3.3 70B → OpenAI gpt-4o-mini → Together Llama-4 |
 | GPT-OSS 20B (Educational) | `gpt-oss-20b` | Groq → `openai/gpt-oss-20b` | Together gpt-oss-20b → Llama-4 Scout → Llama 3.1 8B |
-| NousCoder-14B (Coding) | `nouscoder-14b` | HuggingFace → `NousResearch/NousCoder-14B` | Together Qwen2.5-Coder-32B → Llama 70B → Groq Llama 70B |
+| NousCoder-14B (Coding) | `nouscoder-14b` | HuggingFace → `NousResearch/NousCoder-14B` | Groq gpt-oss-20b → OpenAI fine-tune or gpt-4o-mini |
 | Vision (screenshot) | auto-detected | Groq → `llama-4-scout-17b-16e-instruct` | Together Llama-4-Scout |
 
 ## Built-in tools
