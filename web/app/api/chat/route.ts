@@ -478,8 +478,8 @@ const _ftModel = process.env.OPENAI_FINETUNE_MODEL;
 const GENERAL_PROVIDERS: ProviderConfig[] = [
   // Kimi K2 (Moonshot AI) on Groq LPU — 1T-parameter MoE, frontier reasoning, full tool use
   { apiKeyEnv: "GROQ_API_KEY",      baseURL: "https://api.groq.com/openai/v1",       modelId: "moonshotai/kimi-k2-instruct-0905",               mode: "general" },
-  // Groq Llama 3.3 70B fallback — 280 tok/s
-  { apiKeyEnv: "GROQ_API_KEY",      baseURL: "https://api.groq.com/openai/v1",       modelId: "llama-3.3-70b-versatile",                        mode: "general" },
+  // Groq's production successor to the retired Llama 3.3 70B endpoint.
+  { apiKeyEnv: "GROQ_API_KEY",      baseURL: "https://api.groq.com/openai/v1",       modelId: "openai/gpt-oss-120b",                            mode: "general" },
   // OpenAI fine-tuned (when available) or gpt-4o-mini
   { apiKeyEnv: "OPENAI_API_KEY",    modelId: _ftModel ?? "gpt-4o-mini",              mode: "general" },
   // Together AI fallbacks
@@ -503,11 +503,11 @@ const VISION_PROVIDERS: ProviderConfig[] = [
   { apiKeyEnv: "TOGETHER_API_KEY", baseURL: "https://api.together.xyz/v1", modelId: "meta-llama/Llama-4-Scout-17B-16E-Instruct", mode: "vision" },
 ];
 
-// When educational model is selected with a PDF, prepend fast Kimi K2 / Llama providers
+// When educational model is selected with a PDF, prepend fast Kimi K2 / GPT-OSS providers
 // so the large context gets processed quickly, then fall back to GPT-OSS 20B as normal.
 const EDU_PDF_PROVIDERS: ProviderConfig[] = [
   { apiKeyEnv: "GROQ_API_KEY",     baseURL: "https://api.groq.com/openai/v1", modelId: "moonshotai/kimi-k2-instruct-0905",          mode: "educational" },
-  { apiKeyEnv: "GROQ_API_KEY",     baseURL: "https://api.groq.com/openai/v1", modelId: "llama-3.3-70b-versatile",                   mode: "educational" },
+  { apiKeyEnv: "GROQ_API_KEY",     baseURL: "https://api.groq.com/openai/v1", modelId: "openai/gpt-oss-120b",                       mode: "educational" },
   ...EDU_PROVIDERS,
 ];
 
