@@ -457,6 +457,7 @@ type ProviderConfig = {
   baseURL?: string;
   baseURLEnv?: string;
   modelId: string;
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   mode: "general" | "educational" | "coding" | "vision";
 };
 
@@ -500,7 +501,7 @@ const CODING_PROVIDERS: ProviderConfig[] = [
 // Vision layer: Qwen 3.6 is Groq's current multimodal model; OpenAI provides a
 // stable fallback when the Groq preview is unavailable or rate-limited.
 const VISION_PROVIDERS: ProviderConfig[] = [
-  { apiKeyEnv: "GROQ_API_KEY", baseURL: "https://api.groq.com/openai/v1", modelId: "qwen/qwen3.6-27b", mode: "vision" },
+  { apiKeyEnv: "GROQ_API_KEY", baseURL: "https://api.groq.com/openai/v1", modelId: "qwen/qwen3.6-27b", reasoningEffort: "none", mode: "vision" },
   { apiKeyEnv: "OPENAI_API_KEY",                                              modelId: "gpt-4o-mini",      mode: "vision" },
 ];
 
@@ -545,6 +546,7 @@ async function streamWithFallbacks(
     try {
       const chunks = await client.chat.completions.create({
         model: provider.modelId, stream: true, ...params,
+        ...(provider.reasoningEffort ? { reasoning_effort: provider.reasoningEffort } : {}),
       });
       return { chunks, client, modelId: provider.modelId };
     } catch (e: unknown) {
@@ -581,6 +583,7 @@ async function completeWithFallbacks(
     try {
       return await client.chat.completions.create({
         model: provider.modelId, stream: false, ...params,
+        ...(provider.reasoningEffort ? { reasoning_effort: provider.reasoningEffort } : {}),
       });
     } catch (e: unknown) {
       const status = (e as { status?: number })?.status;
