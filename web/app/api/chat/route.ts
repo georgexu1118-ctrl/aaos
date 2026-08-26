@@ -497,10 +497,11 @@ const CODING_PROVIDERS: ProviderConfig[] = [
   { apiKeyEnv: "OPENAI_API_KEY",                                         modelId: _ftModel ?? "gpt-4o-mini",   mode: "coding" },
 ];
 
-// Vision layer: Groq LPU first (fastest), Together AI fallback.
+// Vision layer: Qwen 3.6 is Groq's current multimodal model; OpenAI provides a
+// stable fallback when the Groq preview is unavailable or rate-limited.
 const VISION_PROVIDERS: ProviderConfig[] = [
-  { apiKeyEnv: "GROQ_API_KEY",    baseURL: "https://api.groq.com/openai/v1", modelId: "meta-llama/llama-4-scout-17b-16e-instruct", mode: "vision" },
-  { apiKeyEnv: "TOGETHER_API_KEY", baseURL: "https://api.together.xyz/v1", modelId: "meta-llama/Llama-4-Scout-17B-16E-Instruct", mode: "vision" },
+  { apiKeyEnv: "GROQ_API_KEY", baseURL: "https://api.groq.com/openai/v1", modelId: "qwen/qwen3.6-27b", mode: "vision" },
+  { apiKeyEnv: "OPENAI_API_KEY",                                              modelId: "gpt-4o-mini",      mode: "vision" },
 ];
 
 // When educational model is selected with a PDF, prepend fast Kimi K2 / GPT-OSS providers
@@ -512,7 +513,7 @@ const EDU_PDF_PROVIDERS: ProviderConfig[] = [
 ];
 
 function resolveProviderChain(requested: string, hasImage: boolean, hasPdf = false): ProviderConfig[] {
-  if (hasImage && requested !== "gpt-4o-mini") return VISION_PROVIDERS;
+  if (hasImage) return VISION_PROVIDERS;
   if (requested === "gpt-oss-20b") return hasPdf ? EDU_PDF_PROVIDERS : EDU_PROVIDERS;
   if (requested === "nouscoder-14b") return CODING_PROVIDERS;
   return GENERAL_PROVIDERS;

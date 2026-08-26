@@ -114,7 +114,7 @@ default                → GENERAL_PROVIDERS
 | `EDU_PROVIDERS` | Groq gpt-oss-20b → Together gpt-oss-20b → Together Llama-4 Scout → Together Llama 3.1 8B |
 | `EDU_PDF_PROVIDERS` | Groq Kimi K2 → Groq gpt-oss-120b → then EDU_PROVIDERS |
 | `CODING_PROVIDERS` | Dedicated NousCoder-14B endpoint (HF_TOKEN or HUGGINGFACE_API_KEY + NOUSCODER_BASE_URL) → OpenAI fine-tune or gpt-4o-mini |
-| `VISION_PROVIDERS` | Groq Llama-4-Scout → Together Llama-4-Scout |
+| `VISION_PROVIDERS` | Groq Qwen 3.6 27B → OpenAI gpt-4o-mini |
 
 ---
 
