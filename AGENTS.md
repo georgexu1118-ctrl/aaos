@@ -14,7 +14,7 @@ This document is the canonical reference for all AI coding agents (OpenAI Codex,
 | GPT-OSS 20B | Educational tutor, STEM, PDF Q&A | Groq / Together AI |
 | NousCoder-14B | Code generation, debugging, refactoring | HuggingFace Router |
 
-The repo also contains a **custom 32-bit x86 kernel** (in `src/`) that boots under QEMU and connects to the same AI backend through a serial bridge. The kernel is local-only and **not part of the Vercel deployment**.
+The repo also contains a **custom 32-bit x86 kernel** (in `src/`) that boots under QEMU. In local kernel-backed web mode, FastAPI requires the kernel to echo each browser question over QEMU COM1 before inference and returns the final answer through the kernel before completing the SSE stream. The kernel is local-only and **not part of the Vercel deployment**.
 
 ---
 
@@ -48,8 +48,8 @@ The repo also contains a **custom 32-bit x86 kernel** (in `src/`) that boots und
 
 ┌──────────────────────────────┐
 │      Local-only (not Vercel) │
-│  QEMU ↔ bridge.py ↔ OpenAI  │
-│  FastAPI (api/main.py)       │
+│ Next.js ↔ FastAPI ↔ QEMU     │
+│         COM1 ↔ x86 kernel    │
 └──────────────────────────────┘
 ```
 
@@ -67,7 +67,8 @@ The repo also contains a **custom 32-bit x86 kernel** (in `src/`) that boots und
 | `web/app/page.tsx` | Homepage: model cards, AAOI chart, NeptuneMuseum section | ✅ |
 | `web/app/chat/page.tsx` | Full chat interface with model switcher, PDF/image attach, flashcard trigger | ✅ |
 | `web/components/` | All React UI components | ✅ |
-| `api/main.py` | FastAPI backend with Supabase persistence (local/legacy) | ❌ |
+| `api/main.py` | Kernel-required FastAPI SSE and model gateway (local) | ❌ |
+| `api/kernel_link.py` | QEMU COM1/TCP protocol client and round-trip verifier | ❌ |
 | `api/supabase_schema.sql` | Supabase schema: sessions + messages tables | ❌ |
 | `bridge/bridge.py` | TCP serial ↔ OpenAI bridge for the x86 kernel | ❌ |
 | `src/boot.s` / `src/kernel.c` | x86 Multiboot1 OS kernel | ❌ |

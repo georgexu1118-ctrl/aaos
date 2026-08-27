@@ -1,5 +1,5 @@
 "use client";
-import { User, Globe, TrendingUp } from "lucide-react";
+import { Cpu, User, Globe, TrendingUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -14,6 +14,7 @@ export interface Message {
   /** @deprecated use imageUrls */
   imageUrl?: string;
   toolCalls?: { tool: string; args: Record<string, unknown> }[];
+  kernelTransit?: boolean;
   streaming?: boolean;
 }
 
@@ -599,6 +600,13 @@ export default function ChatMessage({ msg, model }: { msg: Message; model?: stri
             {msg.toolCalls.map((tc, i) => (
               <ToolBadge key={i} tool={tc.tool} args={tc.args} />
             ))}
+          </div>
+        )}
+
+        {!isUser && msg.kernelTransit && (
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-cyan-300/70">
+            <Cpu size={11} />
+            x86 kernel transit verified
           </div>
         )}
 

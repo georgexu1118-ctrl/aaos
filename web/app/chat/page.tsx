@@ -13,7 +13,7 @@ import FlashcardDeck from "@/components/FlashcardDeck";
 
 const StarField = dynamic(() => import("@/components/StarField"), { ssr: false });
 
-const API_BASE = "";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
 const SUGGESTED = [
   "What is AAOI trading at right now?",
@@ -149,6 +149,10 @@ function ChatPage() {
           } else if (ev.type === "error") {
             setMessages(prev => prev.map(m =>
               m.id === aiId ? { ...m, content: ev.message ?? "Something went wrong.", streaming: false } : m
+            ));
+          } else if (ev.type === "kernel") {
+            setMessages(prev => prev.map(m =>
+              m.id === aiId ? { ...m, kernelTransit: true } : m
             ));
           }
         } catch { /* incomplete line remains buffered until the next read */ }

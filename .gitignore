@@ -16,6 +16,7 @@ secrets/
 openai_key*
 
 # python
+.venv/
 __pycache__/
 *.pyc
 *.pyo

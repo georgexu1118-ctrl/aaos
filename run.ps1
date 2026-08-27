@@ -7,7 +7,8 @@
       -Headless  No window; COM1 -> build/serial.log; verifies the kernel reached
                  its READY handshake. Exit 0 (pass) / 1 (fail).
       -Chat      QEMU window, COM1 exposed as a TCP server on 127.0.0.1:Port. QEMU
-                 waits for the bridge to connect, then boots. Pair with bridge.ps1.
+                 waits for one gateway to connect, then boots. Pair with FastAPI for
+                 the browser demo or bridge.ps1 for the standalone terminal demo.
 .EXAMPLE
     ./run.ps1
 .EXAMPLE
@@ -57,8 +58,9 @@ if ($Headless) {
     Write-Host "VERIFY: FAIL (READY handshake not seen)"; exit 1
 }
 elseif ($Chat) {
-    Write-Host "QEMU: COM1 is a TCP server on 127.0.0.1:$Port. It waits for the bridge,"
-    Write-Host "then boots. In a second terminal run:"
+    Write-Host "QEMU: COM1 is a TCP server on 127.0.0.1:$Port. It waits for a gateway,"
+    Write-Host "then boots. In a second terminal run one gateway:"
+    Write-Host "    python -m uvicorn api.main:app --reload --port 8000  # web demo"
     Write-Host "    ./bridge/bridge.ps1 -Port $Port          # real OpenAI"
     Write-Host "    ./bridge/bridge.ps1 -Port $Port -Mock     # offline, no key"
     & $qemu -kernel $kernel -serial "tcp:127.0.0.1:$Port,server"

@@ -6,7 +6,7 @@ import Link from "next/link";
 
 interface Msg { id: string; role: "user" | "assistant"; content: string; streaming?: boolean; }
 
-const API_BASE = "";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
 const DEMO_HINTS = [
   "What is AAOI trading at?",

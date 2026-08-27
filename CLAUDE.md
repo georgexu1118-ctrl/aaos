@@ -7,7 +7,7 @@
 **AAOS Research** is two things in one repository:
 
 1. **Web app** (`web/`) — a deployed Next.js AI chat interface at [aaos-research.vercel.app](https://aaos-research.vercel.app). This is the **active, production codebase**. All day-to-day development happens here.
-2. **x86 kernel** (`src/`, `bridge/`, `api/`) — a custom 32-bit Multiboot OS that boots under QEMU. **Local only, not deployed.** Touch this only when explicitly asked.
+2. **x86 kernel** (`src/`, `bridge/`, `api/`) — a custom 32-bit Multiboot OS that boots under QEMU. The local FastAPI mode routes every browser turn through QEMU COM1 and verifies the kernel echo before model inference. **Local only, not deployed.** Touch this only when explicitly asked.
 
 ## Repository layout
 
@@ -39,7 +39,7 @@ aaos/
 │       ├── NebulaLayers.tsx        # CSS nebula background
 │       ├── NeptuneMuseum.tsx       # Homepage bottom section
 │       └── StarField.tsx           # Canvas starfield (SSR disabled)
-├── api/                  # FastAPI backend (local use only, not deployed)
+├── api/                  # Kernel-required FastAPI gateway (local only)
 ├── bridge/               # Serial ↔ OpenAI bridge for kernel
 ├── src/                  # x86 Multiboot kernel (C + Assembly)
 ├── Makefile / build.ps1  # Kernel build

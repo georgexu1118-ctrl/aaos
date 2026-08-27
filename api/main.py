@@ -1,7 +1,4 @@
-"""
-minios AI - FastAPI backend
-Connects the web UI to OpenAI and the minios kernel bridge.
-"""
+"""Local AAOS API: Next.js -> FastAPI -> x86 kernel -> LLM provider."""
 import asyncio
 import json
 import os
@@ -14,9 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from .kernel_link import KernelLink, KernelLinkError
+
 load_dotenv()
 
 app = FastAPI(title="AAOS Research API", version="1.0.0")
+
+kernel_link = KernelLink(
+    host=os.getenv("AAOS_KERNEL_HOST", "127.0.0.1"),
+    port=int(os.getenv("AAOS_KERNEL_PORT", "4555")),
+)
+kernel_turn_lock = asyncio.Lock()
 
 app.add_middleware(
     CORSMiddleware,
@@ -140,9 +145,8 @@ TOOLS = [
 ]
 
 SYSTEM_PROMPT = (
-    "You are AAOS — the Autonomous AI OS — an advanced intelligence running on a custom "
-    "32-bit OS kernel built from scratch. You have the precision of a spacecraft navigation "
-    "system and the curiosity of an explorer beyond the known universe. "
+    "You are AAOS, an AI assistant whose local request and response transport passes through "
+    "a custom 32-bit x86 kernel. The model inference itself runs on a host provider. "
     "Use get_stock for US stock questions (live Yahoo Finance data). "
     "Use web_search for current events, recent news, or anything beyond your training cutoff. "
     "Answer general knowledge from your own training without searching. "
@@ -163,9 +167,33 @@ class ChatRequest(BaseModel):
     model: str = "gpt-4o-mini"
 
 
-async def stream_chat(req: ChatRequest, api_key: str) -> AsyncGenerator[str, None]:
+def resolve_provider(model: str) -> tuple[str, str | None, str]:
+    if model == "gpt-oss-20b":
+        return (
+            os.getenv("GROQ_API_KEY", ""),
+            "https://api.groq.com/openai/v1",
+            "openai/gpt-oss-20b",
+        )
+    return os.getenv("OPENAI_API_KEY", ""), None, "gpt-4o-mini"
+
+
+async def stream_chat(req: ChatRequest) -> AsyncGenerator[str, None]:
+    if os.getenv("AAOS_MOCK_LLM") == "1":
+        latest_user = next(
+            (message.content for message in reversed(req.messages) if message.role == "user"),
+            "",
+        )
+        answer = f"Mock provider received the kernel-verified request: {latest_user}"
+        yield f"data: {json.dumps({'type': 'text', 'text': answer})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'text': answer, 'model': 'aaos-mock'})}\n\n"
+        return
+
     from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=api_key)
+    api_key, base_url, provider_model = resolve_provider(req.model)
+    if not api_key:
+        env_name = "GROQ_API_KEY" if req.model == "gpt-oss-20b" else "OPENAI_API_KEY"
+        raise RuntimeError(f"{env_name} not configured")
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m.role, "content": m.content} for m in req.messages]
@@ -176,7 +204,7 @@ async def stream_chat(req: ChatRequest, api_key: str) -> AsyncGenerator[str, Non
     while tool_rounds < 4:
         tool_rounds += 1
         stream = await client.chat.completions.create(
-            model=req.model,
+            model=provider_model,
             messages=messages,
             tools=TOOLS,
             temperature=0.4,
@@ -252,15 +280,61 @@ async def stream_chat(req: ChatRequest, api_key: str) -> AsyncGenerator[str, Non
         messages.append(assistant_msg)
         messages.extend(tool_results)
 
-    yield f"data: {json.dumps({'type': 'done', 'text': final_text})}\n\n"
+    yield f"data: {json.dumps({'type': 'done', 'text': final_text, 'model': provider_model})}\n\n"
+
+
+def parse_sse_event(event: str) -> dict | None:
+    line = next((line for line in event.splitlines() if line.startswith("data: ")), None)
+    if not line:
+        return None
+    try:
+        return json.loads(line[6:])
+    except json.JSONDecodeError:
+        return None
+
+
+async def stream_chat_through_kernel(req: ChatRequest) -> AsyncGenerator[str, None]:
+    latest_user_index = next(
+        (index for index in range(len(req.messages) - 1, -1, -1) if req.messages[index].role == "user"),
+        None,
+    )
+    if latest_user_index is None:
+        yield f"data: {json.dumps({'type': 'error', 'message': 'No user message supplied.'})}\n\n"
+        return
+
+    async with kernel_turn_lock:
+        try:
+            echoed_question = await asyncio.to_thread(
+                kernel_link.begin_turn,
+                req.messages[latest_user_index].content,
+            )
+            yield f"data: {json.dumps({'type': 'kernel', 'stage': 'request', 'text': echoed_question})}\n\n"
+
+            kernel_messages = [message.model_copy() for message in req.messages]
+            kernel_messages[latest_user_index].content = echoed_question
+            kernel_req = req.model_copy(update={"messages": kernel_messages})
+
+            done_event = None
+            final_text = ""
+            async for event in stream_chat(kernel_req):
+                payload = parse_sse_event(event)
+                if payload and payload.get("type") == "done":
+                    done_event = event
+                    final_text = str(payload.get("text") or "")
+                else:
+                    yield event
+
+            kernel_answer = await asyncio.to_thread(kernel_link.finish_turn, final_text)
+            yield f"data: {json.dumps({'type': 'kernel', 'stage': 'answer', 'text': kernel_answer})}\n\n"
+            if done_event:
+                yield done_event
+        except (KernelLinkError, RuntimeError) as exc:
+            await asyncio.to_thread(kernel_link.abort_turn, str(exc))
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
 
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
-
     # Persist to Supabase if available
     db = get_supabase()
     if db and req.session_id:
@@ -273,7 +347,7 @@ async def chat(req: ChatRequest):
             pass
 
     return StreamingResponse(
-        stream_chat(req, api_key),
+        stream_chat_through_kernel(req),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -281,7 +355,13 @@ async def chat(req: ChatRequest):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "aaos-research", "ts": int(time.time())}
+    return {
+        "status": "ok",
+        "service": "aaos-kernel-gateway",
+        "kernel_connected": kernel_link.connected,
+        "kernel_target": f"{kernel_link.host}:{kernel_link.port}",
+        "ts": int(time.time()),
+    }
 
 
 @app.get("/api/sessions/{session_id}/messages")
