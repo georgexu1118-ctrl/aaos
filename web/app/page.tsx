@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight,
   BookOpen,
   Box,
   Brain,
@@ -15,9 +14,9 @@ import Navbar from "@/components/Navbar";
 import NebulaLayers from "@/components/NebulaLayers";
 import FloatingChat from "@/components/FloatingChat";
 import NeptuneMuseum from "@/components/NeptuneMuseum";
+import KernelBridgeSection from "@/components/KernelBridgeSection";
 
 const StarField = dynamic(() => import("@/components/StarField"), { ssr: false });
-const FloatingAaoiTicker = dynamic(() => import("@/components/FloatingAaoiTicker"), { ssr: false });
 
 const filters = [
   { label: "All Models", icon: Box, active: true },
@@ -188,49 +187,12 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto mt-10 max-w-7xl">
-          <div className="grid gap-5 lg:grid-cols-12">
-            <article className="relative overflow-hidden rounded-2xl border border-cyan-300/15 bg-[#0c0e10]/80 shadow-2xl shadow-black/30 backdrop-blur-xl lg:col-span-7">
-              <div className="relative">
-                <Image
-                  src="/aaoi-chart.png"
-                  alt="AAOI stock chart showing YTD performance"
-                  width={900}
-                  height={480}
-                  className="h-[240px] w-full object-cover object-top opacity-90 md:h-[280px]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e10] via-[#0c0e10]/20 to-transparent" />
-                <p className="absolute bottom-3 left-3 text-[10px] font-mono text-zinc-400/70">
-                  nfa / traded this multiple times, I don&apos;t hold
-                </p>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-white/10 bg-[#0c0e10]/80 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl lg:col-span-5">
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-cyan-300/70">
-                Origin Signal
-              </p>
-              <h2 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-white">
-                AAOI stays part of the lab.
-              </h2>
-              <p className="mt-4 text-sm leading-6 text-zinc-400">
-                AAOS keeps live market intelligence close to the model workspace, including the AAOI story that inspired the project name.
-              </p>
-              <Link
-                href="/chat"
-                className="mt-8 inline-flex items-center gap-2 rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
-              >
-                Ask about AAOI <ArrowRight size={16} />
-              </Link>
-            </article>
-          </div>
-        </section>
+        <KernelBridgeSection />
 
         <NeptuneMuseum />
       </main>
 
       <FloatingChat />
-      <FloatingAaoiTicker />
     </div>
   );
 }
