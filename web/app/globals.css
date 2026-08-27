@@ -194,6 +194,25 @@ html, body {
   0%, 100% { transform: translate(0,0) rotate(0deg) scale(1);  opacity: 0.8; }
   50%       { transform: translate(-6px,-20px) rotate(30deg) scale(1.2); opacity: 1; }
 }
+@keyframes kernel-scan-beam {
+  0%   { transform: translateY(-110%); opacity: 0; }
+  12%  { opacity: 1; }
+  82%  { opacity: 0.7; }
+  100% { transform: translateY(640%); opacity: 0; }
+}
+@keyframes kernel-frame-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes kernel-status-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+@keyframes kernel-crt-flicker {
+  0%, 96%, 100% { filter: brightness(1) contrast(1); }
+  97%           { filter: brightness(1.08) contrast(1.03); }
+  98%           { filter: brightness(0.96) contrast(1.01); }
+}
 
 /* ── Animation classes ───────────────────────────────────────────── */
 .animate-spin-slow          { animation: spin-slow 25s linear infinite; }
@@ -212,6 +231,19 @@ html, body {
 .animate-fade-in-delay-3    { animation: fadeIn 0.8s ease 0.5s  both; }
 .animate-fade-in-delay-4    { animation: fadeIn 0.8s ease 0.7s  both; }
 .msg-enter                  { animation: msgIn 0.3s ease forwards; }
+.kernel-scan-beam           { animation: kernel-scan-beam 4.8s linear infinite; }
+.kernel-frame-enter         { animation: kernel-frame-enter 0.35s ease-out both; }
+.kernel-status-pulse        { animation: kernel-status-pulse 1.4s ease-in-out infinite; }
+.kernel-screen-image        { animation: kernel-crt-flicker 7s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kernel-scan-beam,
+  .kernel-frame-enter,
+  .kernel-status-pulse,
+  .kernel-screen-image {
+    animation: none;
+  }
+}
 
 /* ── Nous-style planet ───────────────────────────────────────────── */
 .planet-bands  { animation: planet-bands-scroll 30s linear infinite; }

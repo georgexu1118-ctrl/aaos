@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Braces, Cable, Cpu, Server, Terminal } from "lucide-react";
+import KernelConsoleVisual from "@/components/KernelConsoleVisual";
 
 const transport = [
   { label: "Next.js", detail: "browser", icon: Braces },
@@ -20,25 +20,7 @@ export default function KernelBridgeSection() {
     <section className="mx-auto mt-14 max-w-7xl border-y border-white/10 py-10 md:py-14">
       <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-7">
-          <div className="overflow-hidden rounded-lg border border-emerald-300/20 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-            <div className="flex h-9 items-center justify-between border-b border-white/10 bg-[#101211] px-3">
-              <div className="flex items-center gap-2 text-[10px] font-mono uppercase text-zinc-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-                QEMU i386 · VGA framebuffer
-              </div>
-              <span className="text-[9px] font-mono text-zinc-600">720 × 400</span>
-            </div>
-            <div className="scanlines relative aspect-[9/5] bg-black">
-              <Image
-                src="/aaos-kernel.png"
-                alt="Actual AAOS kernel VGA output captured from QEMU after a COM1 message round trip"
-                fill
-                sizes="(max-width: 1024px) 100vw, 58vw"
-                className="object-contain"
-                style={{ imageRendering: "pixelated" }}
-              />
-            </div>
-          </div>
+          <KernelConsoleVisual />
 
           <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-white/10 bg-white/10 md:grid-cols-4">
             {transport.map((step, index) => {
